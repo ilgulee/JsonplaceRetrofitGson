@@ -9,16 +9,28 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.reactivex.Observable;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
+import okhttp3.OkHttpClient;
+import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Call;
 import retrofit2.Callback;
+import retrofit2.HttpException;
 import retrofit2.Response;
 import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private TextView textViewResult;
     private JsonPlaceHolderApi mJsonPlaceHolderApi;
+    private CompositeDisposable mCompositeDisposable;
+    private RxJava2CallAdapterFactory mAdapterFactory;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,17 +39,88 @@ public class MainActivity extends AppCompatActivity {
 
         textViewResult = findViewById(R.id.text_view_result);
 
+        mAdapterFactory = RxJava2CallAdapterFactory.createWithScheduler(Schedulers.io());
+
+        //create OkHttp client
+        OkHttpClient.Builder okhttpclientBuilder = new OkHttpClient.Builder();
+        HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor();
+        loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+
+        if (BuildConfig.DEBUG) {
+            okhttpclientBuilder.addInterceptor(loggingInterceptor);
+        }
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("https://jsonplaceholder.typicode.com/")
                 .addConverterFactory(GsonConverterFactory.create())
+                .addCallAdapterFactory(mAdapterFactory)
+                .client(okhttpclientBuilder.build())
                 .build();
 
         mJsonPlaceHolderApi = retrofit.create(JsonPlaceHolderApi.class);
-       // getPosts();
+
+        getPosts();
         //getComments();
         //createPost();
-        updatePost();
+        //updatePost();
     }
+
+    @Override
+    protected void onDestroy() {
+        Log.d(TAG, "onDestroy: starts");
+        mCompositeDisposable.dispose();
+        super.onDestroy();
+        Log.d(TAG, "onDestroy: ends");
+    }
+
+
+    private Observable<List<Post>> getPosts() {
+        Log.d(TAG, "getPosts: starts");
+        Map<String, String> parameters = new HashMap<>();
+        parameters.put("userId", "1");
+        parameters.put("_sort", "id");
+        parameters.put("_order", "desc");
+
+        Observable<List<Post>> call = mJsonPlaceHolderApi.getPosts(parameters);
+        call.subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Observer<List<Post>>() {
+
+                    @Override
+                    public void onSubscribe(Disposable d) {
+                        //mCompositeDisposable.add(d);
+                    }
+
+                    @Override
+                    public void onNext(List<Post> posts) {
+                        for (Post post : posts) {
+                            String content = "";
+                            content += "ID: " + post.getId() + "\n";
+                            content += "User ID: " + post.getUserId() + "\n";
+                            content += "Title: " + post.getTitle() + "\n";
+                            content += "Text: " + post.getText() + "\n\n";
+                            Log.d(TAG, "onResponse: " + content);
+                            textViewResult.append(content);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable t) {
+                        if (t instanceof HttpException) {
+                            HttpException response = (HttpException) t;
+                            int code = response.code();
+                            Log.d(TAG, "onError: " + code);
+                        }
+                    }
+
+                    @Override
+                    public void onComplete() {
+
+                    }
+                });
+        Log.d(TAG, "getPosts: ends");
+        return null;
+    }
+
     private void updatePost() {
         Post post = new Post(12, null, "New Text");
 
@@ -89,12 +172,12 @@ public class MainActivity extends AppCompatActivity {
 
     private Call<Post> createPost() {
         Post post = new Post(23, "New Title", "New Text");
+        Call<Post> call = mJsonPlaceHolderApi.createPost(post);
 
-        Map<String, String> fields = new HashMap<>();
-        fields.put("userId", "25");
-        fields.put("title", "New Title");
-
-        Call<Post> call = mJsonPlaceHolderApi.createPost(fields);
+//        Map<String, String> fields = new HashMap<>();
+//        fields.put("userId", "25");
+//        fields.put("title", "New Title");
+//        Call<Post> call = mJsonPlaceHolderApi.createPost(fields);
 
         call.enqueue(new Callback<Post>() {
             @Override
@@ -113,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
                 content += "User ID: " + postResponse.getUserId() + "\n";
                 content += "Title: " + postResponse.getTitle() + "\n";
                 content += "Text: " + postResponse.getText() + "\n\n";
-                Log.d(TAG, "onResponse: "+content);
+                Log.d(TAG, "onResponse: " + content);
                 textViewResult.setText(content);
             }
 
@@ -124,77 +207,7 @@ public class MainActivity extends AppCompatActivity {
         });
         return null;
     }
-    private Call<List<Comment>> getComments(){
-        Call<List<Comment>> call = mJsonPlaceHolderApi
-                .getComments("comments?postId=1");
 
-        call.enqueue(new Callback<List<Comment>>() {
-            @Override
-            public void onResponse(Call<List<Comment>> call, Response<List<Comment>> response) {
-                Log.d(TAG, "onResponse: starts");
-                if (!response.isSuccessful()) {
-                    textViewResult.setText("Code: " + response.code());
-                    return;
-                }
 
-                List<Comment> comments = response.body();
 
-                for (Comment comment : comments) {
-                    String content = "";
-                    content += "ID: " + comment.getId() + "\n";
-                    content += "Post ID: " + comment.getPostId() + "\n";
-                    content += "Name: " + comment.getName() + "\n";
-                    content += "Email: " + comment.getEmail() + "\n";
-                    content += "Text: " + comment.getText() + "\n\n";
-                    Log.d(TAG, "onResponse: "+content);
-                    textViewResult.append(content);
-                }
-            }
-
-            @Override
-            public void onFailure(Call<List<Comment>> call, Throwable t) {
-                textViewResult.setText(t.getMessage());
-            }
-        });
-        return null;
-    }
-
-    private Call<List<Post>> getPosts() {
-        Map<String, String> parameters = new HashMap<>();
-        parameters.put("userId", "1");
-        parameters.put("_sort", "id");
-        parameters.put("_order", "desc");
-
-        Call<List<Post>> call = mJsonPlaceHolderApi.getPosts(parameters);
-
-        call.enqueue(new Callback<List<Post>>() {
-            @Override
-            public void onResponse(Call<List<Post>> call, Response<List<Post>> response) {
-                Log.d(TAG, "onResponse: starts");
-                if (!response.isSuccessful()) {
-                    textViewResult.setText("Code: " + response.code());
-                    return;
-                }
-
-                List<Post> posts = response.body();
-
-                for (Post post : posts) {
-                    String content = "";
-                    content += "ID: " + post.getId() + "\n";
-                    content += "User ID: " + post.getUserId() + "\n";
-                    content += "Title: " + post.getTitle() + "\n";
-                    content += "Text: " + post.getText() + "\n\n";
-                    Log.d(TAG, "onResponse: "+content);
-                    textViewResult.append(content);
-                }
-                Log.d(TAG, "onResponse: ends");
-            }
-
-            @Override
-            public void onFailure(Call<List<Post>> call, Throwable t) {
-                textViewResult.setText(t.getMessage());
-            }
-        });
-        return null;
-    }
 }

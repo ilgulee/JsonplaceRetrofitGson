@@ -3,6 +3,8 @@ package ilgulee.com.jsonplaceretrofitgson;
 import java.util.List;
 import java.util.Map;
 
+
+import io.reactivex.Observable;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.DELETE;
@@ -21,6 +23,9 @@ import retrofit2.http.Url;
 public interface JsonPlaceHolderApi {
 
     @GET("posts")
+    Call<List<Post>> getPosts();
+
+    @GET("posts")
     Call<List<Post>> getPosts(
             @Query("userId") Integer[] userId,
             @Query("_sort") String sort,
@@ -28,7 +33,7 @@ public interface JsonPlaceHolderApi {
     );
 
     @GET("posts")
-    Call<List<Post>> getPosts(@QueryMap Map<String, String> parameters);
+    Observable<List<Post>> getPosts(@QueryMap Map<String, String> parameters);
 
     @GET("posts/{id}/comments")
     Call<List<Comment>> getComments(@Path("id") int postId);

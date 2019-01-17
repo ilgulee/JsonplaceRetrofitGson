@@ -2,7 +2,9 @@ package ilgulee.com.jsonplaceretrofitgson;
 
 import com.google.gson.annotations.SerializedName;
 
-public class Post {
+import java.io.Serializable;
+
+public class Post implements Serializable {
     private int userId;
 
     private Integer id;
@@ -10,8 +12,8 @@ public class Post {
     private String title;
 
     @SerializedName("body")
-
     private String text;
+
     public Post(int userId, String title, String text) {
         this.userId = userId;
         this.title = title;
