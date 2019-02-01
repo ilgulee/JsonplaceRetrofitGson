@@ -9,54 +9,34 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.inject.Inject;
+
 import io.reactivex.Observable;
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
-import okhttp3.OkHttpClient;
-import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.HttpException;
 import retrofit2.Response;
 import retrofit2.Retrofit;
-import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
-import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private TextView textViewResult;
     private JsonPlaceHolderApi mJsonPlaceHolderApi;
     private CompositeDisposable mCompositeDisposable;
-    private RxJava2CallAdapterFactory mAdapterFactory;
+    @Inject Retrofit mRetrofit;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        ( (MyApp)getApplication()).getAppComponent().inject(this);
         textViewResult = findViewById(R.id.text_view_result);
-
-        mAdapterFactory = RxJava2CallAdapterFactory.createWithScheduler(Schedulers.io());
-
-        //create OkHttp client
-        OkHttpClient.Builder okhttpclientBuilder = new OkHttpClient.Builder();
-        HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor();
-        loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
-
-        if (BuildConfig.DEBUG) {
-            okhttpclientBuilder.addInterceptor(loggingInterceptor);
-        }
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("https://jsonplaceholder.typicode.com/")
-                .addConverterFactory(GsonConverterFactory.create())
-                .addCallAdapterFactory(mAdapterFactory)
-                .client(okhttpclientBuilder.build())
-                .build();
-
-        mJsonPlaceHolderApi = retrofit.create(JsonPlaceHolderApi.class);
+        mJsonPlaceHolderApi = mRetrofit.create(JsonPlaceHolderApi.class);
 
         getPosts();
         //getComments();
@@ -71,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         Log.d(TAG, "onDestroy: ends");
     }
+
 
 
     private Observable<List<Post>> getPosts() {

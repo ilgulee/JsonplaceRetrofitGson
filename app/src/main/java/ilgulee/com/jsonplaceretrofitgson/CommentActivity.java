@@ -7,39 +7,28 @@ import android.widget.TextView;
 
 import java.util.List;
 
-import okhttp3.OkHttpClient;
-import okhttp3.logging.HttpLoggingInterceptor;
+import javax.inject.Inject;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
 
 public class CommentActivity extends AppCompatActivity {
     private static final String TAG = "CommentActivity";
     private TextView textViewResult;
     private JsonPlaceHolderApi mJsonPlaceHolderApi;
+    @Inject
+    Retrofit mRetrofit;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textViewResult = findViewById(R.id.text_view_result);
-        //create OkHttp client
-        OkHttpClient.Builder okhttpclientBuilder = new OkHttpClient.Builder();
-        HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor();
-        loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
-
-        if (BuildConfig.DEBUG) {
-            okhttpclientBuilder.addInterceptor(loggingInterceptor);
-        }
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("https://jsonplaceholder.typicode.com/")
-                .addConverterFactory(GsonConverterFactory.create())
-                .client(okhttpclientBuilder.build())
-                .build();
-
-        mJsonPlaceHolderApi = retrofit.create(JsonPlaceHolderApi.class);
+        ( (MyApp)getApplication()).getAppComponent().inject(this);
+        mJsonPlaceHolderApi = mRetrofit.create(JsonPlaceHolderApi.class);
         getComments();
     }
 
